@@ -1,0 +1,12 @@
+* lastho.pe
+** memex meets the hypertext era
+*** https://en.wikipedia.org/wiki/Memex
+*** https://en.wikipedia.org/wiki/Hypertext
+** keywords
+*** productivity tool
+*** search
+*** personnal knowledge base
+** Code
+*** fastfoward.js
+*** aiohttp
+*** hoply

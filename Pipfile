@@ -1,0 +1,46 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[dev-packages]
+aiohttp-devtools = "*"
+ipython = "*"
+sphinx = "*"
+pytest = "*"
+pytest-cov = "*"
+"flake8" = "*"
+codecov = "*"
+jedi = "*"
+pytest-asyncio = "*"
+pre-commit = "*"
+pylint = "*"
+requests = "*"
+bandit = "*"
+black = "*"
+pylama = "*"
+
+[packages]
+aiohttp = "*"
+"argon2-cffi" = "*"
+daiquiri = "*"
+docopt = "*"
+itsdangerous = "*"
+setproctitle = "*"
+trafaret = "*"
+aiodns = "*"
+yarl = "*"
+async-timeout = "*"
+cffi = "*"
+uvloop = "*"
+mistune = "*"
+immutables = "*"
+defusedxml = "*"
+snowballstemmer = "*"
+pystemmer = "*"
+wordfreq = "*"
+unidecode = "*"
+lxml = "*"
+
+[pipenv]
+allow_prereleases = true
