@@ -3,6 +3,7 @@ from uuid import uuid4
 
 # framework-ish stuff
 
+
 class BeyondException(Exception):
     pass
 
@@ -11,7 +12,7 @@ def generate_unique_key(dictionary):
     key = uuid4().hex
     if key not in dictionary:
         return key
-    raise BeyondException('Seems like the dictionary is full')
+    raise BeyondException("Seems like the dictionary is full")
 
 
 class Node(object):  # inspired from nevow
@@ -24,7 +25,7 @@ class Node(object):  # inspired from nevow
 
     """
 
-    __slots__ = ('_tag', '_children', '_attributes')
+    __slots__ = ("_tag", "_children", "_attributes")
 
     def __init__(self, tag):
         self._tag = tag
@@ -37,7 +38,7 @@ class Node(object):  # inspired from nevow
         return self
 
     def __repr__(self):
-        return '<Node: %s %s>' % (self._tag, self._attributes)
+        return "<Node: %s %s>" % (self._tag, self._attributes)
 
     def append(self, node):
         """Append a single node or string as a child"""
@@ -75,7 +76,7 @@ def serialize(node):
     def to_html_events(attributes):
         """Filter attributes referencing callbacks"""
         for key, value in attributes.items():
-            if key.startswith('on'):
+            if key.startswith("on"):
                 yield key, value
 
     def to_dict(node):
@@ -84,13 +85,13 @@ def serialize(node):
             return node
         else:
             out = dict(tag=node._tag)
-            out['attributes'] = dict(node._attributes)
+            out["attributes"] = dict(node._attributes)
             for event_name, callback in to_html_events(node._attributes):
                 key = generate_unique_key(events)
                 events[key] = callback  # XXX: side effect!
-                out['attributes'][event_name] = key
+                out["attributes"][event_name] = key
             # recurse center
-            out['children'] = [to_dict(child) for child in node._children]
+            out["children"] = [to_dict(child) for child in node._children]
             return out
 
     return to_dict(node), events
@@ -143,28 +144,23 @@ events = dict()
 
 
 def get(path, token=None):
-    return {
-        'type': 'ajax',
-        'method': 'get',
-        'path': path,
-        'token': token,
-    }
+    return {"type": "ajax", "method": "get", "path": path, "token": token}
 
 
 def post(path, body=None, token=None):
     return {
-        'type': 'ajax',
-        'method': 'post',
-        'path': path,
-        'body': body,
-        'token': token,
+        "type": "ajax",
+        "method": "post",
+        "path": path,
+        "body": body,
+        "token": token,
     }
 
 
 def recv(event):
     # XXX: what happens if the same event is fired multiple
     # times
-    callback = events[event['key']]
+    callback = events[event["key"]]
     # callback is a running generator
     if isinstance(callback, GeneratorType):
         raise Exception()
@@ -175,7 +171,7 @@ def recv(event):
         else:
             key = generate_unique_key(events)
             events[key] = generator
-            request['key'] = key
+            request["key"] = key
             return request
 
     # otherwise
@@ -185,7 +181,7 @@ def recv(event):
         request = next(generator)
         key = generate_unique_key(events)
         events[key] = generator
-        request['key'] = key
+        request["key"] = key
         return request
 
     out = _render()
@@ -195,7 +191,7 @@ def recv(event):
 def _render():
     html, new = serialize(render())
     events.update(new)  # XXX: leak
-    html['type'] = 'dom'
+    html["type"] = "dom"
     return html
 
 
@@ -203,82 +199,81 @@ def _render():
 
 
 class STATUS:
-    DONE = 'done'
-    WIP = 'wip'
-    ALL = 'all'
+    DONE = "done"
+    WIP = "wip"
+    ALL = "all"
 
 
 class Todo:
-
     def __init__(self, value):
         self.value = value
         self.status = STATUS.WIP
 
 
-model = dict(
-    todo='',
-    filter=STATUS.ALL,
-    todos=[Todo('Learn Python')]
-)
+model = dict(todo="", filter=STATUS.ALL, todos=[Todo("Learn Python")])
 
 
 def on_value_change(event):
-    value = event['event']['target.value']
-    model['todo'] = value
+    value = event["event"]["target.value"]
+    model["todo"] = value
 
 
 def on_submit(event):
-    out = yield get('/api/status')
-    model['todos'].append(Todo(model['todo']))
-    model['todo'] = ''
+    out = yield get("/api/status")
+    model["todos"].append(Todo(model["todo"]))
+    model["todo"] = ""
 
 
 def on_done(todo):
     def on_event(_):
         todo.status = STATUS.DONE
+
     return on_event
 
 
 def on_filter(value):
     def on_event(_):
-        model['filter'] = value
+        model["filter"] = value
+
     return on_event
 
 
 def filter_button(value):
-    if model['filter'] == value:
-        return h.input(className='active', type='submit', value=value)
+    if model["filter"] == value:
+        return h.input(className="active", type="submit", value=value)
     else:
-        return h.input(className='inactive', type='submit', value=value, onClick=on_filter(value))
+        return h.input(
+            className="inactive", type="submit", value=value, onClick=on_filter(value)
+        )
 
 
 def render():
-    root = h.div(id='root')
+    root = h.div(id="root")
     root.append(h.h1()["todos"])
-    done = len(filter(lambda x: x.status == 'done', model['todos']))
-    count = float(len(model['todos']))
+    done = len(filter(lambda x: x.status == "done", model["todos"]))
+    count = float(len(model["todos"]))
     percent = (done / count) * 100
     msg = "{:.2f}% complete!".format(percent)
     root.append(h.h2()[msg])
-    filters = h.div(id='filters')
-    filters.append(filter_button('all'))
-    filters.append(filter_button('wip'))
-    filters.append(filter_button('done'))
+    filters = h.div(id="filters")
+    filters.append(filter_button("all"))
+    filters.append(filter_button("wip"))
+    filters.append(filter_button("done"))
     root.append(filters)
     form = h.form(onSubmit=on_submit)
-    form.append(h.input(type='text', onChange=on_value_change, value=model['todo']))
+    form.append(h.input(type="text", onChange=on_value_change, value=model["todo"]))
     root.append(form)
-    if model['filter'] == STATUS.ALL:
-        for todo in model['todos']:
-            item = h.div(className='item ' + todo.status)
+    if model["filter"] == STATUS.ALL:
+        for todo in model["todos"]:
+            item = h.div(className="item " + todo.status)
             item.append(h.span()[todo.value])
-            item.append(h.input(type='submit', value='done', onClick=on_done(todo)))
+            item.append(h.input(type="submit", value="done", onClick=on_done(todo)))
             root.append(item)
     else:
-        for todo in model['todos']:
-            if todo.status == model['filter']:
-                item = h.div(className='item ' + todo.status)
+        for todo in model["todos"]:
+            if todo.status == model["filter"]:
+                item = h.div(className="item " + todo.status)
                 item.append(h.span()[todo.value])
-                item.append(h.input(type='submit', value='done', onClick=on_done(todo)))
+                item.append(h.input(type="submit", value="done", onClick=on_done(todo)))
                 root.append(item)
     return root

@@ -36,10 +36,7 @@ def _u(path):
 
 
 # The root of our pypy source checkout, if it exists.
-PYPY_ROOT = os.path.join(
-    os.path.dirname(_u(__file__)),
-    "../deps/pypy",
-)
+PYPY_ROOT = os.path.join(os.path.dirname(_u(__file__)), "../deps/pypy")
 
 # Modules that are builtin, so we shouldn't expect them in the bundle.
 BUILTIN_MODULES = [
@@ -113,8 +110,7 @@ EXCLUDE_MODULES = [
     "audioop",
     "Carbon",
     "MacOS",
-    "_osx_support"
-    "smtpd",
+    "_osx_support" "smtpd",
     "idlelib",
     "Tkinter",
     "Tkconstants",
@@ -176,35 +172,50 @@ def main(argv):
 
     parser_init = subparsers.add_parser("init")
     parser_init.add_argument("bundle_dir")
-    parser_init.add_argument("--exclude", action="append",
-                             help="exclude these modules from the bundle")
-    parser_init.add_argument("--include", action="append",
-                            help="include these modules in the bundle, overrides exclude")
-    parser_init.add_argument("--preload", action="append",
-                             help="preload these modules in the bundle")
-    parser_init.add_argument("--pypy-root", action="store",
-                             help="root directory of pypy source checkout")
+    parser_init.add_argument(
+        "--exclude", action="append", help="exclude these modules from the bundle"
+    )
+    parser_init.add_argument(
+        "--include",
+        action="append",
+        help="include these modules in the bundle, overrides exclude",
+    )
+    parser_init.add_argument(
+        "--preload", action="append", help="preload these modules in the bundle"
+    )
+    parser_init.add_argument(
+        "--pypy-root", action="store", help="root directory of pypy source checkout"
+    )
 
     parser_add = subparsers.add_parser("add")
     parser_add.add_argument("bundle_dir")
     parser_add.add_argument("modules", nargs="+", metavar="module")
-    parser_add.add_argument("--exclude", action="append",
-                            help="exclude these modules from the bundle")
-    parser_add.add_argument("--preload", action="append",
-                            help="preload these modules in the bundle")
-    parser_add.add_argument("--include", action="append",
-                            help="include these modules in the bundle, overrides exclude")
+    parser_add.add_argument(
+        "--exclude", action="append", help="exclude these modules from the bundle"
+    )
+    parser_add.add_argument(
+        "--preload", action="append", help="preload these modules in the bundle"
+    )
+    parser_add.add_argument(
+        "--include",
+        action="append",
+        help="include these modules in the bundle, overrides exclude",
+    )
 
     parser_preload = subparsers.add_parser("preload")
     parser_preload.add_argument("bundle_dir")
     parser_preload.add_argument("modules", nargs="+", metavar="module")
-    
+
     parser_remove = subparsers.add_parser("remove")
     parser_remove.add_argument("bundle_dir")
     parser_remove.add_argument("modules", nargs="+", metavar="module")
-    parser_remove.add_argument("--purge", action="store_true", default=False,
-                               help="delete the modules out of the bundle_dir, instead of just de-listing them")
-    
+    parser_remove.add_argument(
+        "--purge",
+        action="store_true",
+        default=False,
+        help="delete the modules out of the bundle_dir, instead of just de-listing them",
+    )
+
     opts = parser.parse_args(argv[1:])
     bundler = ModuleBundle(_u(opts.bundle_dir))
     if opts.subcommand == "init":
@@ -278,22 +289,28 @@ def cmd_preload(bundler, opts):
         bundler.preload_module(name)
     bundler.flush_index()
 
+
 def cmd_remove(bundler, opts):
     for name in opts.modules:
         for module in bundler.modules.copy():
             if re.match(name, module):
                 if opts.purge:
                     file_name = bundler.modules[module].get("file", None)
-                    if file_name and os.path.exists(os.path.join(bundler.bundle_dir, file_name)):
+                    if file_name and os.path.exists(
+                        os.path.join(bundler.bundle_dir, file_name)
+                    ):
                         os.remove(os.path.join(bundler.bundle_dir, file_name))
                     dir_name = bundler.modules[module].get("dir", None)
-                    if dir_name and os.path.exists(os.path.join(bundler.bundle_dir, dir_name)):
+                    if dir_name and os.path.exists(
+                        os.path.join(bundler.bundle_dir, dir_name)
+                    ):
                         shutil.rmtree(os.path.join(bundler.bundle_dir, dir_name))
                 bundler.modules.pop(module)
         for module in bundler.preload.copy():
             if re.match(name, module):
                 bundler.preload.pop(module)
     bundler.flush_index()
+
 
 class ModuleBundle(object):
     """Class managing a directory of bundled modules.
@@ -356,10 +373,12 @@ class ModuleBundle(object):
         """Write out the index file based on in-memory state."""
         # Atomically update the index file.
         with open(self.index_file + ".new", "w") as f:
-            json.dump({
-                "modules": self.modules,
-                "preload": self.preload,
-            }, f, indent=2, sort_keys=True)
+            json.dump(
+                {"modules": self.modules, "preload": self.preload},
+                f,
+                indent=2,
+                sort_keys=True,
+            )
         if sys.platform.startswith("win32"):
             shutil.copy(self.index_file + ".new", self.index_file)
             os.remove(self.index_file + ".new")
@@ -367,10 +386,12 @@ class ModuleBundle(object):
             os.rename(self.index_file + ".new", self.index_file)
         # Atomically update the meta file.
         with open(self.meta_file + ".new", "w") as f:
-            json.dump({
-                "exclude": self.exclude,
-                "missing": self.missing,
-            }, f, indent=2, sort_keys=True)
+            json.dump(
+                {"exclude": self.exclude, "missing": self.missing},
+                f,
+                indent=2,
+                sort_keys=True,
+            )
         if sys.platform.startswith("win32"):
             shutil.copy(self.meta_file + ".new", self.meta_file)
             os.remove(self.meta_file + ".new")
@@ -476,8 +497,9 @@ class ModuleBundle(object):
             moddata = {"file": relpath.replace("\\", "/")}
             self.modules[modname] = moddata
             # Copy its source file across.
-            self._copy_py_file(os.path.join(rootdir, relpath),
-                               os.path.join(self.bundle_dir, relpath))
+            self._copy_py_file(
+                os.path.join(rootdir, relpath), os.path.join(self.bundle_dir, relpath)
+            )
             # We'll need to analyse its imports once all siblings are gathered.
             self._modules_pending_import_analysis.append(modname)
 

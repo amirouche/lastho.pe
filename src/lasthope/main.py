@@ -130,13 +130,13 @@ def create_app(loop):
 
     # index and static
     def index(request):
-        index = Path(__file__).parent / 'index.html'
-        with index.open('rb') as f:
+        index = Path(__file__).parent / "index.html"
+        with index.open("rb") as f:
             out = f.read()
-        return web.Response(body=out, content_type='text/html')
+        return web.Response(body=out, content_type="text/html")
 
     app.router.add_route("GET", "/", index)
-    app.add_routes([web.static('/static', Path(__file__).parent / 'static')])
+    app.add_routes([web.static("/static", Path(__file__).parent / "static")])
 
     return app
 
