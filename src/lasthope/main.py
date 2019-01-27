@@ -48,8 +48,8 @@ async def status(request):
 
 async def init_database(app):
     log.debug("init database")
-    db = h.open(WiredtigerStore('/tmp/wt', logging=True))
-    app['db'] = db
+    db = h.open(WiredtigerStore("/tmp/wt", logging=True))
+    app["db"] = db
     return app
 
 
@@ -83,12 +83,12 @@ def create_app(loop):
         return out
 
     async def projects(request):
-        db = request.app['db']
+        db = request.app["db"]
         query = h.compose(
-            h.where(h.var('uid'), 'type', 'project'),
-            h.where(h.var('uid'), 'project/title', h.var('title')),
+            h.where(h.var("uid"), "type", "project"),
+            h.where(h.var("uid"), "project/title", h.var("title")),
         )
-        out = [pick(binding, ('uid', 'title')) for binding in query(db)]
+        out = [pick(binding, ("uid", "title")) for binding in query(db)]
         return web.json_response(out)
 
     app.router.add_route("GET", "/api/projects/", projects)
@@ -99,51 +99,49 @@ def create_app(loop):
 
     async def project_new(request):
         data = await request.json()
-        title = data['title']
-        description = data['description']
-        db = request.app['db']
+        title = data["title"]
+        description = data["description"]
+        db = request.app["db"]
         with db.transaction():
             uid = h.uid().hex
-            db.add(uid, 'type', 'project')
-            db.add(uid, 'project/title', title)
+            db.add(uid, "type", "project")
+            db.add(uid, "project/title", title)
             # add description as first item
             item = h.uid().hex
-            db.add(item, 'type', 'item')
-            db.add(item, 'item/project', uid)
-            db.add(item, 'item/type', 'query')
-            db.add(item, 'item/value', json.dumps(description))
-            db.add(item, 'item/timestamp', now())
+            db.add(item, "type", "item")
+            db.add(item, "item/project", uid)
+            db.add(item, "item/type", "query")
+            db.add(item, "item/value", json.dumps(description))
+            db.add(item, "item/timestamp", now())
         return web.json_response(dict(uid=uid))
 
     app.router.add_route("POST", "/api/project/new/", project_new)
 
     async def project_get(request):
-        uid = request.match_info['uid']
-        log.debug('Looking up project uid=%r', uid)
+        uid = request.match_info["uid"]
+        log.debug("Looking up project uid=%r", uid)
         out = dict(uid=uid)
-        db = request.app['db']
+        db = request.app["db"]
         # query project title
-        query = h.compose(
-            h.where(uid, 'project/title', h.var('title')),
-        )
-        out['title'] = list(query(db))[0]['title']
+        query = h.compose(h.where(uid, "project/title", h.var("title")))
+        out["title"] = list(query(db))[0]["title"]
 
         # query projet's items
         query = h.compose(
-            h.where(h.var('uid'), 'item/project', uid),
+            h.where(h.var("uid"), "item/project", uid),
             # h.where(h.var('uid'), 'type', 'item'),
-            h.where(h.var('uid'), 'item/type', h.var('type')),
-            h.where(h.var('uid'), 'item/value', h.var('value')),
-            h.where(h.var('uid'), 'item/timestamp', h.var('timestamp')),
+            h.where(h.var("uid"), "item/type", h.var("type")),
+            h.where(h.var("uid"), "item/value", h.var("value")),
+            h.where(h.var("uid"), "item/timestamp", h.var("timestamp")),
         )
         items = list()
-        keys = ('uid', 'type', 'value', 'timestamp')
+        keys = ("uid", "type", "value", "timestamp")
         for binding in query(db):
             item = pick(binding, keys)
-            item['value'] = json.loads(item['value'])
+            item["value"] = json.loads(item["value"])
             items.append(item)
-        items.sort(key=lambda x: x['timestamp'])
-        out['items'] = items
+        items.sort(key=lambda x: x["timestamp"])
+        out["items"] = items
 
         return web.json_response(out)
 
@@ -152,45 +150,42 @@ def create_app(loop):
     import yaml
     import searx.engines
     import searx.search
-    settings = Path(__file__).parent.parent / 'settings.yml'
+
+    settings = Path(__file__).parent.parent / "settings.yml"
     settings = yaml.load(settings.open())
-    engines = searx.engines.load_engines(settings['engines'])
+    engines = searx.engines.load_engines(settings["engines"])
 
     async def search(query):
         params = searx.search.default_request_params()
-        params['pageno'] = 1
-        params['language'] = 'en-US'
-        params['time_range'] = None
+        params["pageno"] = 1
+        params["language"] = "en-US"
+        params["time_range"] = None
 
-        return searx.search.search_one_request(
-            engines['google'],
-            query,
-            params
-        )
+        return searx.search.search_one_request(engines["google"], query, params)
 
     async def project_post(request):
         query = await request.json()
-        query = query['query']
-        uid = request.match_info['uid']
-        db = request.app['db']
+        query = query["query"]
+        uid = request.match_info["uid"]
+        db = request.app["db"]
         # add item to project
         with db.transaction():
             item = h.uid().hex
-            db.add(item, 'type', 'item')
-            db.add(item, 'item/project', uid)
-            db.add(item, 'item/type', 'query')
-            db.add(item, 'item/value', json.dumps(query))
-            db.add(item, 'item/timestamp', now())
+            db.add(item, "type", "item")
+            db.add(item, "item/project", uid)
+            db.add(item, "item/type", "query")
+            db.add(item, "item/value", json.dumps(query))
+            db.add(item, "item/timestamp", now())
 
             hits = await search(query)
 
             for hit in hits:
                 hit_uid = h.uid().hex
-                db.add(hit_uid, 'type', 'item')
-                db.add(hit_uid, 'item/project', uid)
-                db.add(hit_uid, 'item/type', 'reply')
-                db.add(hit_uid, 'item/value', json.dumps(hit))
-                db.add(hit_uid, 'item/timestamp', now())
+                db.add(hit_uid, "type", "item")
+                db.add(hit_uid, "item/project", uid)
+                db.add(hit_uid, "item/type", "reply")
+                db.add(hit_uid, "item/value", json.dumps(hit))
+                db.add(hit_uid, "item/timestamp", now())
 
         return web.json_response()
 
