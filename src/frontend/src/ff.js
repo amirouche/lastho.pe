@@ -6,7 +6,7 @@ import Immutable from 'seamless-immutable';
 /**
  * Neat debug function
  */
-let log = function() {
+let pk = function() {
     let args = Array.prototype.slice.call(arguments);
     if (process.env.NODE_ENV !== 'production') {
         console.log.apply(console, args);
@@ -17,7 +17,7 @@ let log = function() {
 /**
  * Create base app environment
  *
- * This is useful in context where you don't plan to have
+ * This is useful in context where you do not plan to have
  * a router or websockets
  *
  * @param {app} can be any JavaScript Object it's passed around
@@ -34,8 +34,10 @@ let log = function() {
  *                     the application environment from the outside.
  *                     It's useful to extend the behavior of forward.
  */
-let createAppBase = function(app, root, init, view) {
+let createSimpleApp = function(app, root, init, view) {
     let model = init();
+
+    // TODO: bring back spawn function
 
     let render;
 
@@ -64,7 +66,7 @@ let createAppBase = function(app, root, init, view) {
 
     /* Render the application */
     render = function() {
-        log('rendering');
+        pk('rendering');
         let html = view(model, makeController);
         ReactDOM.render(html, root);
     };
@@ -91,6 +93,7 @@ let Router = class {
     }
 
     append(pattern, init, view) {
+        // TODO: assert ends with slash
         if(!pattern.startsWith('/')) {
             throw new Error("Pattern must start with a /");
         }
@@ -99,7 +102,7 @@ let Router = class {
     }
 
     async resolve(app, model) {
-        log('resolving route...');
+        pk('resolving route...');
         let path = document.location.pathname.split('/');
         let match, params;
 
@@ -109,7 +112,7 @@ let Router = class {
 
             if (match) {
                 this.route = route;
-                log('router matched route', route)
+                pk('router matched route', route)
                 let transformer = await route.init(app, model, params);
                 // eslint-disable-next-line
                 return _ => transformer(app, model);
@@ -117,7 +120,10 @@ let Router = class {
         }
 
         // FIXME: replace with 404 error page
-        throw new Error('no matching route found');
+        let msg = 'no matching route found!';
+        pk(msg);
+        // silenced by reactjs?!
+        throw new Error(msg);
     }
 
     match(route, path) {
@@ -148,11 +154,11 @@ let Router = class {
 }
 
 /**
- * Create the app environment, run the app and return a function that allows
- * to sneak into it.
+ * Create the app, run the app and return a function that allows
+ * to sneak into it. The application will mounted on an html
+ * element which has "root" as id. The initial model will be
+ * an Immutable JS Object.
  *
- * @param {container_id} the html identifier of the dom element where to
- *        render the application.
  * @param {router} a Router instance.
  * @returns {Function} a function that allows to sneak into the app closure
  *          from the outside world.
@@ -160,21 +166,21 @@ let Router = class {
 let createApp = function(router) {
     let app = {router: router};
 
-    // prepare createAppBase arguments
+    // prepare createSimpleApp arguments
     let root = document.getElementById("root");
     let init = function() { return Immutable({}); };
     let view = function(model, mc) {
         return router.route.view(model, mc);
     };
 
-    let change = createAppBase(app, root, init, view);
+    let change = createSimpleApp(app, root, init, view);
 
     window.onpopstate = function(event) {
         return change(router.resolve.bind(router));
     };
 
-    log('initial rendering');
-    change(router.resolve.bind(router)); // trigger a render
+    pk('initial rendering');
+    change(router.resolve.bind(router));
 
     return change;
 }
@@ -192,7 +198,7 @@ let linkClicked = function(href) {
 }
 
 let redirect = async function(app, model, href) {
-    log('redrecting...', app, model, href);
+    pk('redrecting...', app, model, href);
     window.history.pushState({}, "", href);
     let transformer = await app.router.resolve(app, model);
     window.scrollTo(0, 0);
@@ -248,6 +254,32 @@ class Title extends React.Component {
     }
 }
 
+
+// ref: https://github.com/facebook/react/issues/955
+class Input extends React.Component {
+    constructor(props, ...args) {
+        super(props, ...args);
+        this.state = { value: props.value };
+    }
+
+    componentWillReceiveProps(nextProps) {
+        if (this.state.value !== nextProps.value) {
+            this.setState({ value: nextProps.value });
+        }
+    }
+
+    onChange(event) {
+        event.persist();
+        // TODO: do something else when this.props.onChange is not set
+        this.setState({ value: event.target.value }, () => this.props.onChange(event));
+    }
+
+    render() {
+        return (<input {...this.props} {...this.state} onChange={this.onChange.bind(this)} />);
+    }
+}
+
+
 let get = function(path, token) {
     let request = new Request(path);
     if (token) {
@@ -297,9 +329,10 @@ export default {
     get,
     getToken,
     setToken,
-    log,
+    pk,
     post,
     redirect,
     set,
     routeClean,
+    Input,
 };

@@ -2,10 +2,20 @@
 ** memex meets the hypertext era
 *** https://en.wikipedia.org/wiki/Memex
 *** https://en.wikipedia.org/wiki/Hypertext
-** keywords
+** Keywords
 *** productivity tool
 *** search
 *** personnal knowledge base
+** Features
+*** Multiple Projects
+*** Library vs Workspace
+*** todo app
+*** notes
+*** outline
+*** tags
+*** search
+*** versioned?
+*** mind map?
 ** Code
 *** fastfoward.js
 *** aiohttp
