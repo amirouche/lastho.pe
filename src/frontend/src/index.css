@@ -172,7 +172,7 @@ div#container.project > .item > * {
 div#container.project > .item > p.title {
 }
 
-div#container.project > .item > p.description {
+div#container.project > .item > p.content {
     color: white;
 }
 
@@ -181,18 +181,17 @@ div#container.project > .item > p.url {
 }
 
 
-div#container.project > div.query {
-    display: block;
-    border: 2px solid white;
-    padding: 15px;
-    margin-top: 15px;
-    text-align: center;
-    background: hsla(0, 0%, 0%, 0.3);
-}
+/* div#container.project > div.query { */
+/*     display: block; */
+/*     border: 2px solid white; */
+/*     padding: 15px; */
+/*     margin-top: 15px; */
+/*     text-align: center; */
+/*     background: hsla(0, 0%, 0%, 0.3); */
+/* } */
 
 div#container.project > div.form {
     display: block;
-    padding: 15px;
     margin-top: 15px;
     display: flex;
 }

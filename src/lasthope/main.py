@@ -7,25 +7,24 @@ Options:
 """
 import asyncio
 import logging
+import json
 import os
-from uuid import UUID
+from time import time
 
 import daiquiri
 import uvloop
 from aiohttp import ClientSession
 from aiohttp import web
-from argon2 import PasswordHasher
 
 from docopt import docopt
-from itsdangerous import BadSignature
-from itsdangerous import SignatureExpired
-from itsdangerous import TimestampSigner
 
 from pathlib import Path
-from setproctitle import setproctitle  # pylint: disable=no-name-in-module
+from setproctitle import setproctitle  # noqa
 
-from lasthope import settings
-from lasthope import feed
+import hoply as h
+from hoply.wiredtiger import WiredtigerStore
+
+# from lasthope import settings
 
 
 log = daiquiri.getLogger(__name__)
@@ -33,58 +32,7 @@ log = daiquiri.getLogger(__name__)
 
 __version__ = (0, 0, 0)
 VERSION = "v" + ".".join([str(x) for x in __version__])
-HOMEPAGE = "https://bit.ly/2D2fT5Q"
-
-
-# middleware
-
-
-async def middleware_check_auth(app, handler):
-    """Check that the request has a valid token.
-
-    Raise HTTPForbidden when the token is not valid.
-
-    `handler` can be marked to ignore token. This is useful for pages like
-    account login, account creation and password retrieval
-
-    """
-
-    async def middleware_handler(request):
-        if getattr(handler, "no_auth", False):
-            response = await handler(request)
-            return response
-        else:
-            try:
-                token = request.cookies["token"]
-            except KeyError:
-                log.debug("No auth token found")
-                raise web.HTTPFound(location="/")
-            else:
-                max_age = app["settings"].TOKEN_MAX_AGE
-                try:
-                    uid = app["signer"].unsign(token, max_age=max_age)
-                except SignatureExpired:
-                    log.debug("Token expired")
-                    raise web.HTTPFound(location="/")
-                except BadSignature:
-                    log.debug("Bad signature")
-                    raise web.HTTPFound(location="/")
-                else:
-                    uid = uid.decode("utf-8")
-                    uid = UUID(hex=uid)
-                    actor = await user.user_by_uid(
-                        request.app["db"], request.app["sparky"], uid
-                    )
-                    if actor is None:
-                        redirect = web.HTTPSeeOther(location="/")
-                        redirect.del_cookie("token")
-                        return redirect
-                    log.debug("User authenticated as '%s'", actor["name"])
-                    request.user = actor
-                    response = await handler(request)
-                    return response
-
-    return middleware_handler
+HOMEPAGE = "https://lastho.pe"
 
 
 # status
@@ -100,6 +48,8 @@ async def status(request):
 
 async def init_database(app):
     log.debug("init database")
+    db = h.open(WiredtigerStore('/tmp/wt', logging=True))
+    app['db'] = db
     return app
 
 
@@ -118,15 +68,133 @@ def create_app(loop):
     app = web.Application()  # pylint: disable=invalid-name
     # others
     app.on_startup.append(init_database)
-    app["settings"] = settings
-    app["hasher"] = PasswordHasher()
-    app["signer"] = TimestampSigner(settings.SECRET)
+    app["settings"] = None
     user_agent = "lasthope {} ({})".format(VERSION, HOMEPAGE)
     headers = {"User-Agent": user_agent}
     app["session"] = ClientSession(headers=headers)
 
-    # api route
-    app.router.add_route("GET", "/api/status", status)
+    # api routes
+    app.router.add_route("GET", "/api/status/", status)
+
+    def pick(binding, keys):
+        out = dict()
+        for key in keys:
+            out[key] = binding[key]
+        return out
+
+    async def projects(request):
+        db = request.app['db']
+        query = h.compose(
+            h.where(h.var('uid'), 'type', 'project'),
+            h.where(h.var('uid'), 'project/title', h.var('title')),
+        )
+        out = [pick(binding, ('uid', 'title')) for binding in query(db)]
+        return web.json_response(out)
+
+    app.router.add_route("GET", "/api/projects/", projects)
+
+    def now():
+        # XXX: maybe replace with loop.time() trickry
+        return int(time())
+
+    async def project_new(request):
+        data = await request.json()
+        title = data['title']
+        description = data['description']
+        db = request.app['db']
+        with db.transaction():
+            uid = h.uid().hex
+            db.add(uid, 'type', 'project')
+            db.add(uid, 'project/title', title)
+            # add description as first item
+            item = h.uid().hex
+            db.add(item, 'type', 'item')
+            db.add(item, 'item/project', uid)
+            db.add(item, 'item/type', 'query')
+            db.add(item, 'item/value', json.dumps(description))
+            db.add(item, 'item/timestamp', now())
+        return web.json_response(dict(uid=uid))
+
+    app.router.add_route("POST", "/api/project/new/", project_new)
+
+    async def project_get(request):
+        uid = request.match_info['uid']
+        log.debug('Looking up project uid=%r', uid)
+        out = dict(uid=uid)
+        db = request.app['db']
+        # query project title
+        query = h.compose(
+            h.where(uid, 'project/title', h.var('title')),
+        )
+        out['title'] = list(query(db))[0]['title']
+
+        # query projet's items
+        query = h.compose(
+            h.where(h.var('uid'), 'item/project', uid),
+            # h.where(h.var('uid'), 'type', 'item'),
+            h.where(h.var('uid'), 'item/type', h.var('type')),
+            h.where(h.var('uid'), 'item/value', h.var('value')),
+            h.where(h.var('uid'), 'item/timestamp', h.var('timestamp')),
+        )
+        items = list()
+        keys = ('uid', 'type', 'value', 'timestamp')
+        for binding in query(db):
+            item = pick(binding, keys)
+            item['value'] = json.loads(item['value'])
+            items.append(item)
+        items.sort(key=lambda x: x['timestamp'])
+        out['items'] = items
+
+        return web.json_response(out)
+
+    app.router.add_route("GET", "/api/project/{uid}/", project_get)
+
+    import yaml
+    import searx.engines
+    import searx.search
+    settings = Path(__file__).parent.parent / 'settings.yml'
+    settings = yaml.load(settings.open())
+    engines = searx.engines.load_engines(settings['engines'])
+
+    async def search(query):
+        params = searx.search.default_request_params()
+        params['pageno'] = 1
+        params['language'] = 'en-US'
+        params['time_range'] = None
+
+        return searx.search.search_one_request(
+            engines['google'],
+            query,
+            params
+        )
+
+    async def project_post(request):
+        query = await request.json()
+        query = query['query']
+        uid = request.match_info['uid']
+        db = request.app['db']
+        # add item to project
+        with db.transaction():
+            item = h.uid().hex
+            db.add(item, 'type', 'item')
+            db.add(item, 'item/project', uid)
+            db.add(item, 'item/type', 'query')
+            db.add(item, 'item/value', json.dumps(query))
+            db.add(item, 'item/timestamp', now())
+
+            hits = await search(query)
+
+            for hit in hits:
+                hit_uid = h.uid().hex
+                db.add(hit_uid, 'type', 'item')
+                db.add(hit_uid, 'item/project', uid)
+                db.add(hit_uid, 'item/type', 'reply')
+                db.add(hit_uid, 'item/value', json.dumps(hit))
+                db.add(hit_uid, 'item/timestamp', now())
+
+        return web.json_response()
+
+    app.router.add_route("POST", "/api/project/{uid}/", project_post)
 
     # index and static
     def index(request):

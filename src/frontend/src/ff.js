@@ -197,11 +197,13 @@ let linkClicked = function(href) {
     }
 }
 
-let redirect = async function(app, model, href) {
-    pk('redrecting...', app, model, href);
+let redirect = async function(app, model, href, scrollup) {
+    pk('redirecting...', app, model, href);
     window.history.pushState({}, "", href);
     let transformer = await app.router.resolve(app, model);
-    window.scrollTo(0, 0);
+    if (scrollup || scrollup === undefined) {
+        window.scrollTo(0, 0);
+    }
     return transformer;
 }
 
@@ -259,7 +261,7 @@ class Title extends React.Component {
 class Input extends React.Component {
     constructor(props, ...args) {
         super(props, ...args);
-        this.state = { value: props.value };
+        this.state = { value: props.value || "" };
     }
 
     componentWillReceiveProps(nextProps) {

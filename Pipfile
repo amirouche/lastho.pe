@@ -41,6 +41,11 @@ pystemmer = "*"
 wordfreq = "*"
 unidecode = "*"
 lxml = "*"
+hoply = "*"
+wiredtiger-ffi = "*"
+searx = "*"
+flask-babel = "*"
+python-dateutil = "*"
 
 [pipenv]
 allow_prereleases = true
