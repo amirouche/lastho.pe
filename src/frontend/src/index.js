@@ -84,7 +84,7 @@ let Query = function({mc, item}) {
 
 let Hit = function({mc, item}) {
     return (
-        <a href="/" className="item hit">
+        <a href={item.value.url} target="_blank" rel="noopener noreferrer" className="item hit">
             <p className="title">{item.value.title}</p>
             <p className="url">{item.value.url}</p>
             <p className="content">{item.value.content}</p>
