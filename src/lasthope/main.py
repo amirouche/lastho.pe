@@ -22,7 +22,7 @@ from pathlib import Path
 from setproctitle import setproctitle  # noqa
 
 import hoply as h
-from hoply.wiredtiger import WiredtigerStore
+from hoply.leveldb import LevelDBConnexion
 
 # from lasthope import settings
 
@@ -48,7 +48,8 @@ async def status(request):
 
 async def init_database(app):
     log.debug("init database")
-    db = h.open(WiredtigerStore("/tmp/wt", logging=True))
+    cnx = LevelDBConnexion("/tmp/wt", logging=True)
+    db = h.open(cnx, 'hoply', ('graph', 'subject', 'predicate'))
     app["db"] = db
     return app
 

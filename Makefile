@@ -14,8 +14,11 @@ check: ## Run tests
 	pipenv run bandit --skip=B101 src/
 	@echo "\033[95m\n\nYou may now run 'make lint'.\n\033[0m"
 
-devrun: ## Run application in development mode
+devback: ## Run application in development mode
 	cd src && DEBUG=DEBUG adev runserver --livereload lasthope/main.py
+
+devfront: ## Run the frontend
+
 
 lint: ## Lint the code
 	pipenv run pylama src/

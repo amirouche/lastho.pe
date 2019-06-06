@@ -46,6 +46,7 @@ wiredtiger-ffi = "*"
 searx = "*"
 flask-babel = "*"
 python-dateutil = "*"
+plyvel = "*"
 
 [pipenv]
 allow_prereleases = true
